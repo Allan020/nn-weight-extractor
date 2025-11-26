@@ -1,0 +1,5 @@
+numpy>=1.19.0
+tensorflow>=2.4.0
+keras>=2.4.0
+configparser>=5.0.0
+

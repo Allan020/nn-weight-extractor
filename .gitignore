@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# C/C++
+*.o
+*.a
+*.so
+*.out
+weights_extractor
+cpp/weights_extractor
+cpp/src/*.o
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Model files (large binary files - users should download separately)
+*.weights
+*.h5
+*.hdf5
+*.pb
+*.onnx
+
+# Output files
+*.bin
+weights.bin
+bias.bin
+weights_reorg.bin
+
+# Test outputs
+test_output/
+output/
+weights/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# OS
+Thumbs.db
+
+
+# Local/personal files
+GITHUB_PUSH_INSTRUCTIONS.md
