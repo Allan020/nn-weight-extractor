@@ -128,6 +128,7 @@ python h5_to_darknet.py \
 - `--output-bias-int16`: Output INT16 bias file (default: outputs/bias_int16.bin)
 - `--output-weights-int16-q`: Output Q values for weights (default: outputs/weight_int16_Q.bin)
 - `--output-bias-int16-q`: Output Q values for biases (default: outputs/bias_int16_Q.bin)
+- `--output-iofm-q`: Output IOFM Q values file (default: outputs/iofm_Q.bin)
 - `--verbose`: Enable detailed layer-by-layer output
 
 ## What It Does
@@ -215,11 +216,12 @@ cd cpp
     --int16
 ```
 
-This generates four output files in the `outputs/` directory:
+This generates five output files in the `outputs/` directory:
 - `outputs/weight_int16.bin`: Quantized weights as int16_t values
 - `outputs/bias_int16.bin`: Quantized biases as int16_t values  
-- `outputs/weight_int16_Q.bin`: Q values for each layer (int32_t array)
-- `outputs/bias_int16_Q.bin`: Q values for each layer (int32_t array)
+- `outputs/weight_int16_Q.bin`: Q values for each layer's weights (int32_t array)
+- `outputs/bias_int16_Q.bin`: Q values for each layer's biases (int32_t array)
+- `outputs/iofm_Q.bin`: Q values for input/output feature maps (int32_t array)
 
 ### Example: YOLOv2 INT16 Quantization
 
@@ -236,6 +238,7 @@ cd cpp
 - `outputs/weights.bin` and `outputs/bias.bin` (float32, always generated)
 - `outputs/weight_int16.bin` and `outputs/bias_int16.bin` (INT16 quantized)
 - `outputs/weight_int16_Q.bin` and `outputs/bias_int16_Q.bin` (Q values per layer)
+- `outputs/iofm_Q.bin` (Q values for input/output feature maps)
 
 ### Custom Output Directory
 
@@ -256,8 +259,11 @@ cd cpp
     --output-weights-int16 custom_weights_i16.bin \
     --output-bias-int16 custom_bias_i16.bin \
     --output-weights-int16-q custom_weights_q.bin \
-    --output-bias-int16-q custom_bias_q.bin
+    --output-bias-int16-q custom_bias_q.bin \
+    --output-iofm-q custom_iofm_q.bin
 ```
+<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
+read_file
 
 ### File Formats
 
@@ -268,8 +274,12 @@ cd cpp
 
 **Q value files:**
 - Binary format: `int32_t` array (4 bytes per Q value, little-endian)
-- One Q value per convolutional layer (0-15)
-- Stored in layer order
+- `weight_int16_Q.bin`: One Q value per convolutional layer (0-15) for weights
+- `bias_int16_Q.bin`: One Q value per convolutional layer (0-15) for biases
+- `iofm_Q.bin`: Q values for input/output feature maps
+  - First value: Q14 (input Q for first layer)
+  - Subsequent values: Output Q for each layer (becomes input Q for next layer)
+  - Total: `num_layers + 1` values
 
 ### Benefits
 
@@ -278,22 +288,34 @@ cd cpp
 - **FPGA-friendly**: INT16 arithmetic is more efficient on FPGAs
 - **Maintains accuracy**: Per-layer Q selection preserves precision where possible
 - **Model-agnostic**: Works with any Darknet cfg file
+- **IOFM quantization**: Generates Q values for input/output feature maps for inference
 
 ### Dequantization Example
 
 To convert INT16 values back to float32 during inference:
 
 ```c
-// Read Q value for layer i
-int32_t q_value = q_values[i];
+// Read Q values for layer i
+int32_t weight_q = weight_q_values[i];
+int32_t bias_q = bias_q_values[i];
+int32_t input_q = iofm_q_values[i];      // Input Q for this layer
+int32_t output_q = iofm_q_values[i+1];   // Output Q for this layer
 
 // Dequantize weight
 int16_t int16_weight = weight_int16[i];
-float float_weight = (float)int16_weight * pow(2.0, -q_value);
+float float_weight = (float)int16_weight * pow(2.0, -weight_q);
 
 // Dequantize bias  
 int16_t int16_bias = bias_int16[i];
-float float_bias = (float)int16_bias * pow(2.0, -q_value);
+float float_bias = (float)int16_bias * pow(2.0, -bias_q);
+
+// Dequantize input feature map
+int16_t int16_input = input_feature_map[i];
+float float_input = (float)int16_input * pow(2.0, -input_q);
+
+// Quantize output feature map
+float float_output = compute_output(float_input, float_weight, float_bias);
+int16_t int16_output = (int16_t)(float_output * pow(2.0, output_q));
 ```
 
 ## Examples

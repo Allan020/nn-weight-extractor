@@ -34,6 +34,7 @@ struct Arguments {
     std::string output_bias_int16 = "outputs/bias_int16.bin";
     std::string output_weights_int16_q = "outputs/weight_int16_Q.bin";
     std::string output_bias_int16_q = "outputs/bias_int16_Q.bin";
+    std::string output_iofm_q = "outputs/iofm_Q.bin";
     bool verbose = false;
     bool help = false;
 };
@@ -53,6 +54,7 @@ void print_usage(const char* program_name) {
     std::cout << "  --output-bias-int16 PATH      Output INT16 bias file (default: outputs/bias_int16.bin)\n";
     std::cout << "  --output-weights-int16-q PATH Output INT16 Q values file (default: outputs/weight_int16_Q.bin)\n";
     std::cout << "  --output-bias-int16-q PATH    Output INT16 Q values file (default: outputs/bias_int16_Q.bin)\n";
+    std::cout << "  --output-iofm-q PATH          Output IOFM Q values file (default: outputs/iofm_Q.bin)\n";
     std::cout << "  --verbose, -v           Enable verbose output\n";
     std::cout << "  --help, -h              Show this help message\n\n";
     std::cout << "Examples:\n";
@@ -111,6 +113,8 @@ Arguments parse_arguments(int argc, char** argv) {
             args.output_weights_int16_q = argv[++i];
         } else if (arg == "--output-bias-int16-q" && i + 1 < argc) {
             args.output_bias_int16_q = argv[++i];
+        } else if (arg == "--output-iofm-q" && i + 1 < argc) {
+            args.output_iofm_q = argv[++i];
         } else {
             std::cerr << "Unknown argument: " << arg << std::endl;
         }
@@ -284,6 +288,12 @@ int main(int argc, char** argv) {
     // Store Q values for all layers
     std::vector<int32_t> weight_q_values;
     std::vector<int32_t> bias_q_values;
+    std::vector<int32_t> iofm_q_values;  // Input/Output Feature Map Q values
+    
+    // First layer input Q value is 14 (Q14) by default
+    if (args.int16_quantize) {
+        iofm_q_values.push_back(14);
+    }
     
     // Process each convolutional layer
     size_t total_weights = 0;
@@ -379,6 +389,10 @@ int main(int argc, char** argv) {
             // Store Q values (same for weights and biases in the same layer)
             weight_q_values.push_back(quantized.q_value);
             bias_q_values.push_back(quantized.q_value);
+            
+            // Store output feature map Q value (same as weight Q for this layer)
+            // This becomes the input Q for the next layer
+            iofm_q_values.push_back(quantized.q_value);
         }
         
         total_weights += folded.weights.size();
@@ -424,6 +438,7 @@ int main(int argc, char** argv) {
     if (args.int16_quantize && !weight_q_values.empty()) {
         std::ofstream weights_q_out(args.output_weights_int16_q, std::ios::binary);
         std::ofstream bias_q_out(args.output_bias_int16_q, std::ios::binary);
+        std::ofstream iofm_q_out(args.output_iofm_q, std::ios::binary);
         
         if (!weights_q_out.is_open()) {
             std::cerr << "Error: Cannot open Q values file: " << args.output_weights_int16_q << std::endl;
@@ -435,14 +450,25 @@ int main(int argc, char** argv) {
             return 1;
         }
         
+        if (!iofm_q_out.is_open()) {
+            std::cerr << "Error: Cannot open IOFM Q values file: " << args.output_iofm_q << std::endl;
+            return 1;
+        }
+        
         // Write Q values as int32_t
         weights_q_out.write(reinterpret_cast<const char*>(weight_q_values.data()),
                            weight_q_values.size() * sizeof(int32_t));
         bias_q_out.write(reinterpret_cast<const char*>(bias_q_values.data()),
                         bias_q_values.size() * sizeof(int32_t));
         
+        // Write IOFM Q values: [input_Q_layer0, output_Q_layer0, output_Q_layer1, ...]
+        // First value is input Q for first layer (14), then output Q for each layer
+        iofm_q_out.write(reinterpret_cast<const char*>(iofm_q_values.data()),
+                        iofm_q_values.size() * sizeof(int32_t));
+        
         weights_q_out.close();
         bias_q_out.close();
+        iofm_q_out.close();
     }
     
     // Close files
@@ -479,6 +505,7 @@ int main(int argc, char** argv) {
         std::cout << "  Biases (INT16):  " << args.output_bias_int16 << std::endl;
         std::cout << "  Weights Q values: " << args.output_weights_int16_q << std::endl;
         std::cout << "  Biases Q values:  " << args.output_bias_int16_q << std::endl;
+        std::cout << "  IOFM Q values:    " << args.output_iofm_q << std::endl;
     }
     
     return 0;
