@@ -56,6 +56,7 @@ weights_reorg.bin
 # Test outputs
 test_output/
 output/
+outputs/
 weights/
 
 # Temporary files

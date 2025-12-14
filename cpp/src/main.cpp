@@ -12,10 +12,13 @@
 #include <cstring>
 #include <iomanip>
 #include <sstream>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "cfg_parser.h"
 #include "weights_reader.h"
 #include "batch_norm_folder.h"
+#include "int16_quantizer.h"
 
 using namespace darknet;
 
@@ -23,8 +26,14 @@ using namespace darknet;
 struct Arguments {
     std::string cfg_path;
     std::string weights_path;
-    std::string output_weights = "weights.bin";
-    std::string output_bias = "bias.bin";
+    std::string output_dir = "outputs";
+    std::string output_weights = "outputs/weights.bin";
+    std::string output_bias = "outputs/bias.bin";
+    bool int16_quantize = false;
+    std::string output_weights_int16 = "outputs/weight_int16.bin";
+    std::string output_bias_int16 = "outputs/bias_int16.bin";
+    std::string output_weights_int16_q = "outputs/weight_int16_Q.bin";
+    std::string output_bias_int16_q = "outputs/bias_int16_Q.bin";
     bool verbose = false;
     bool help = false;
 };
@@ -36,8 +45,14 @@ void print_usage(const char* program_name) {
     std::cout << "  --cfg PATH              Path to Darknet .cfg file\n";
     std::cout << "  --weights PATH          Path to Darknet .weights file\n\n";
     std::cout << "Optional arguments:\n";
-    std::cout << "  --output-weights PATH   Output weights file (default: weights.bin)\n";
-    std::cout << "  --output-bias PATH      Output bias file (default: bias.bin)\n";
+    std::cout << "  --output-dir PATH       Output directory (default: outputs)\n";
+    std::cout << "  --output-weights PATH   Output weights file (default: outputs/weights.bin)\n";
+    std::cout << "  --output-bias PATH      Output bias file (default: outputs/bias.bin)\n";
+    std::cout << "  --int16                 Enable INT16 quantization\n";
+    std::cout << "  --output-weights-int16 PATH   Output INT16 weights file (default: outputs/weight_int16.bin)\n";
+    std::cout << "  --output-bias-int16 PATH      Output INT16 bias file (default: outputs/bias_int16.bin)\n";
+    std::cout << "  --output-weights-int16-q PATH Output INT16 Q values file (default: outputs/weight_int16_Q.bin)\n";
+    std::cout << "  --output-bias-int16-q PATH    Output INT16 Q values file (default: outputs/bias_int16_Q.bin)\n";
     std::cout << "  --verbose, -v           Enable verbose output\n";
     std::cout << "  --help, -h              Show this help message\n\n";
     std::cout << "Examples:\n";
@@ -61,10 +76,41 @@ Arguments parse_arguments(int argc, char** argv) {
             args.cfg_path = argv[++i];
         } else if (arg == "--weights" && i + 1 < argc) {
             args.weights_path = argv[++i];
+        } else if (arg == "--output-dir" && i + 1 < argc) {
+            args.output_dir = argv[++i];
+            // Update default paths if output-dir is specified
+            if (args.output_weights == "outputs/weights.bin") {
+                args.output_weights = args.output_dir + "/weights.bin";
+            }
+            if (args.output_bias == "outputs/bias.bin") {
+                args.output_bias = args.output_dir + "/bias.bin";
+            }
+            if (args.output_weights_int16 == "outputs/weight_int16.bin") {
+                args.output_weights_int16 = args.output_dir + "/weight_int16.bin";
+            }
+            if (args.output_bias_int16 == "outputs/bias_int16.bin") {
+                args.output_bias_int16 = args.output_dir + "/bias_int16.bin";
+            }
+            if (args.output_weights_int16_q == "outputs/weight_int16_Q.bin") {
+                args.output_weights_int16_q = args.output_dir + "/weight_int16_Q.bin";
+            }
+            if (args.output_bias_int16_q == "outputs/bias_int16_Q.bin") {
+                args.output_bias_int16_q = args.output_dir + "/bias_int16_Q.bin";
+            }
         } else if (arg == "--output-weights" && i + 1 < argc) {
             args.output_weights = argv[++i];
         } else if (arg == "--output-bias" && i + 1 < argc) {
             args.output_bias = argv[++i];
+        } else if (arg == "--int16") {
+            args.int16_quantize = true;
+        } else if (arg == "--output-weights-int16" && i + 1 < argc) {
+            args.output_weights_int16 = argv[++i];
+        } else if (arg == "--output-bias-int16" && i + 1 < argc) {
+            args.output_bias_int16 = argv[++i];
+        } else if (arg == "--output-weights-int16-q" && i + 1 < argc) {
+            args.output_weights_int16_q = argv[++i];
+        } else if (arg == "--output-bias-int16-q" && i + 1 < argc) {
+            args.output_bias_int16_q = argv[++i];
         } else {
             std::cerr << "Unknown argument: " << arg << std::endl;
         }
@@ -105,6 +151,35 @@ std::string format_bytes(size_t bytes) {
     oss << std::fixed << std::setprecision(value >= 10.0 ? 1 : 2)
         << value << " " << units[unit_index];
     return oss.str();
+}
+
+bool create_output_directory(const std::string& file_path) {
+    // Extract directory from file path
+    size_t last_slash = file_path.find_last_of("/\\");
+    if (last_slash == std::string::npos) {
+        return true;  // No directory component, file is in current directory
+    }
+    
+    std::string dir = file_path.substr(0, last_slash);
+    
+    // Check if directory already exists
+    struct stat info;
+    if (stat(dir.c_str(), &info) == 0 && S_ISDIR(info.st_mode)) {
+        return true;  // Directory exists
+    }
+    
+    // Create directory (with parent directories if needed)
+    // For simplicity, we'll create just the immediate directory
+    // Using mode 0755 (rwxr-xr-x)
+    if (mkdir(dir.c_str(), 0755) != 0) {
+        // Check if it was created by another process
+        if (stat(dir.c_str(), &info) == 0 && S_ISDIR(info.st_mode)) {
+            return true;
+        }
+        return false;
+    }
+    
+    return true;
 }
 
 int main(int argc, char** argv) {
@@ -153,6 +228,12 @@ int main(int argc, char** argv) {
     // Read header
     weights_reader.read_header();
     
+    // Create output directory if needed
+    if (!create_output_directory(args.output_weights)) {
+        std::cerr << "Error: Cannot create output directory for: " << args.output_weights << std::endl;
+        return 1;
+    }
+    
     // Open output files
     std::ofstream weights_out(args.output_weights, std::ios::binary);
     std::ofstream bias_out(args.output_bias, std::ios::binary);
@@ -167,10 +248,42 @@ int main(int argc, char** argv) {
         return 1;
     }
     
+    // Open INT16 output files if quantization is enabled
+    std::ofstream weights_int16_out;
+    std::ofstream bias_int16_out;
+    
+    if (args.int16_quantize) {
+        weights_int16_out.open(args.output_weights_int16, std::ios::binary);
+        bias_int16_out.open(args.output_bias_int16, std::ios::binary);
+        
+        if (!weights_int16_out.is_open()) {
+            std::cerr << "Error: Cannot open INT16 weights file: " << args.output_weights_int16 << std::endl;
+            return 1;
+        }
+        
+        if (!bias_int16_out.is_open()) {
+            std::cerr << "Error: Cannot open INT16 bias file: " << args.output_bias_int16 << std::endl;
+            return 1;
+        }
+    }
+    
     std::cout << "\nExtracting and processing layers..." << std::endl;
+    if (args.int16_quantize) {
+        std::cout << "INT16 quantization enabled" << std::endl;
+    }
     
     // Create batch norm folder
     BatchNormFolder bn_folder;
+    
+    // Create INT16 quantizer if needed
+    Int16Quantizer* quantizer = nullptr;
+    if (args.int16_quantize) {
+        quantizer = new Int16Quantizer(args.verbose);
+    }
+    
+    // Store Q values for all layers
+    std::vector<int32_t> weight_q_values;
+    std::vector<int32_t> bias_q_values;
     
     // Process each convolutional layer
     size_t total_weights = 0;
@@ -232,6 +345,37 @@ int main(int argc, char** argv) {
         bias_out.write(reinterpret_cast<const char*>(folded.biases.data()),
                       folded.biases.size() * sizeof(float));
         
+        // INT16 quantization if enabled
+        if (args.int16_quantize && quantizer) {
+            QuantizedData quantized = quantizer->quantize_layer(folded.weights, folded.biases);
+            
+            // Write quantized weights
+            size_t weights_size = quantized.weights.size();
+            weights_int16_out.write(reinterpret_cast<const char*>(quantized.weights.data()),
+                                   weights_size * sizeof(int16_t));
+            
+            // Handle padding if odd number of elements
+            if (weights_size & 0x1) {
+                int16_t pad = 0;
+                weights_int16_out.write(reinterpret_cast<const char*>(&pad), sizeof(int16_t));
+            }
+            
+            // Write quantized biases
+            size_t biases_size = quantized.biases.size();
+            bias_int16_out.write(reinterpret_cast<const char*>(quantized.biases.data()),
+                                biases_size * sizeof(int16_t));
+            
+            // Handle padding if odd number of elements
+            if (biases_size & 0x1) {
+                int16_t pad = 0;
+                bias_int16_out.write(reinterpret_cast<const char*>(&pad), sizeof(int16_t));
+            }
+            
+            // Store Q values (same for weights and biases in the same layer)
+            weight_q_values.push_back(quantized.q_value);
+            bias_q_values.push_back(quantized.q_value);
+        }
+        
         total_weights += folded.weights.size();
         total_biases += folded.biases.size();
 
@@ -254,8 +398,13 @@ int main(int argc, char** argv) {
                       << " (per-group in=" << in_per_group << ")"
                       << " weights=" << folded.weights.size() << " (" << format_bytes(weights_bytes) << ")"
                       << " bias=" << folded.biases.size() << " (" << format_bytes(bias_bytes) << ")"
-                      << (layer.batch_normalize ? " BN-folded" : "")
-                      << std::endl;
+                      << (layer.batch_normalize ? " BN-folded" : "");
+            
+            if (args.int16_quantize && !weight_q_values.empty()) {
+                int q_val = weight_q_values.back();
+                std::cout << " Q=" << q_val;
+            }
+            std::cout << std::endl;
         } else {
             // Compact progress for non-verbose runs
             std::cout << "\rProcessed layer " << (i+1) << "/" << conv_layers.size() << std::flush;
@@ -266,10 +415,45 @@ int main(int argc, char** argv) {
         std::cout << std::endl;
     }
     
+    // Write Q values if quantization was enabled
+    if (args.int16_quantize && !weight_q_values.empty()) {
+        std::ofstream weights_q_out(args.output_weights_int16_q, std::ios::binary);
+        std::ofstream bias_q_out(args.output_bias_int16_q, std::ios::binary);
+        
+        if (!weights_q_out.is_open()) {
+            std::cerr << "Error: Cannot open Q values file: " << args.output_weights_int16_q << std::endl;
+            return 1;
+        }
+        
+        if (!bias_q_out.is_open()) {
+            std::cerr << "Error: Cannot open Q values file: " << args.output_bias_int16_q << std::endl;
+            return 1;
+        }
+        
+        // Write Q values as int32_t
+        weights_q_out.write(reinterpret_cast<const char*>(weight_q_values.data()),
+                           weight_q_values.size() * sizeof(int32_t));
+        bias_q_out.write(reinterpret_cast<const char*>(bias_q_values.data()),
+                        bias_q_values.size() * sizeof(int32_t));
+        
+        weights_q_out.close();
+        bias_q_out.close();
+    }
+    
     // Close files
     weights_reader.close();
     weights_out.close();
     bias_out.close();
+    
+    if (args.int16_quantize) {
+        weights_int16_out.close();
+        bias_int16_out.close();
+    }
+    
+    // Clean up quantizer
+    if (quantizer) {
+        delete quantizer;
+    }
     
     // Print summary
     std::cout << "\n=========================" << std::endl;
@@ -283,6 +467,14 @@ int main(int argc, char** argv) {
     std::cout << "\nOutput files:" << std::endl;
     std::cout << "  Weights: " << args.output_weights << std::endl;
     std::cout << "  Biases:  " << args.output_bias << std::endl;
+    
+    if (args.int16_quantize) {
+        std::cout << "\nINT16 quantization files:" << std::endl;
+        std::cout << "  Weights (INT16): " << args.output_weights_int16 << std::endl;
+        std::cout << "  Biases (INT16):  " << args.output_bias_int16 << std::endl;
+        std::cout << "  Weights Q values: " << args.output_weights_int16_q << std::endl;
+        std::cout << "  Biases Q values:  " << args.output_bias_int16_q << std::endl;
+    }
     
     return 0;
 }

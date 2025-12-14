@@ -16,6 +16,7 @@ The tool performs batch normalization folding during extraction, eliminating BN 
 
 - **Multiple Input Formats**: Keras H5 models, Darknet .weights files
 - **Batch Normalization Folding**: Automatically folds BN into convolutional layers
+- **INT16 Quantization**: Optional Q-format fixed-point quantization for FPGA/ASIC deployment
 - **Fast C++ Extractor**: Zero external dependencies, processes 50M parameters in <1 second
 - **Architecture Support**: YOLOv2, YOLOv3, custom CNN architectures
 - **Production Ready**: Comprehensive error handling, validation, and logging
@@ -52,7 +53,7 @@ cd cpp
 ./weights_extractor --cfg model.cfg --weights model.weights
 ```
 
-Output: `weights.bin` and `bias.bin` in current directory.
+Output: `outputs/weights.bin` and `outputs/bias.bin` in the `outputs/` directory (created automatically if it doesn't exist).
 
 ### Convert from Keras H5
 
@@ -110,8 +111,14 @@ python h5_to_darknet.py \
 **Options:**
 - `--cfg`: Darknet configuration file
 - `--weights`: Darknet weights file
-- `--output-weights`: Output weights binary (default: weights.bin)
-- `--output-bias`: Output bias binary (default: bias.bin)
+- `--output-dir`: Output directory (default: outputs)
+- `--output-weights`: Output weights binary (default: outputs/weights.bin)
+- `--output-bias`: Output bias binary (default: outputs/bias.bin)
+- `--int16`: Enable INT16 quantization (outputs INT16 files and Q values)
+- `--output-weights-int16`: Output INT16 weights file (default: outputs/weight_int16.bin)
+- `--output-bias-int16`: Output INT16 bias file (default: outputs/bias_int16.bin)
+- `--output-weights-int16-q`: Output Q values for weights (default: outputs/weight_int16_Q.bin)
+- `--output-bias-int16-q`: Output Q values for biases (default: outputs/bias_int16_Q.bin)
 - `--verbose`: Enable detailed layer-by-layer output
 
 ## What It Does
@@ -140,27 +147,152 @@ Perfect for FPGAs, ASICs, microcontrollers, and custom accelerators.
 
 ## Output Format
 
+All output files are written to the `outputs/` directory by default (can be changed with `--output-dir`). The directory is created automatically if it doesn't exist.
+
 ### weights.bin
+- Location: `outputs/weights.bin` (default)
 - Binary file of 32-bit floats (IEEE 754, little-endian)
 - Sequential convolutional layer weights (BN-folded)
 - Format: `[layer0_weights, layer1_weights, ...]`
 
 ### bias.bin  
+- Location: `outputs/bias.bin` (default)
 - Binary file of 32-bit floats (IEEE 754, little-endian)
 - Sequential convolutional layer biases (BN-folded)
 - Format: `[layer0_biases, layer1_biases, ...]`
+
+## INT16 Quantization
+
+The tool supports optional INT16 quantization using Q-format fixed-point representation, ideal for FPGA and ASIC implementations where reduced precision and memory bandwidth are critical.
+
+### How It Works
+
+INT16 quantization converts float32 weights and biases to 16-bit integers using per-layer Q values:
+
+- **Q-format**: Each layer gets a Q value (0-15) that determines the quantization scale
+- **Quantization formula**: `int16_value = (int16_t)(float_value * 2^Q)`
+- **Dequantization**: `float_value = (float)int16_value * 2^(-Q)`
+- **Per-layer Q selection**: Automatically finds the highest Q value that can represent all values in a layer
+
+**Q-format ranges:**
+- Q0: [-32768, 32767] (largest range, lowest precision)
+- Q15: [-1, 0.99996948] (smallest range, highest precision)
+
+### Usage
+
+Enable INT16 quantization with the `--int16` flag:
+
+```bash
+cd cpp
+./weights_extractor \
+    --cfg model.cfg \
+    --weights model.weights \
+    --int16
+```
+
+This generates four output files in the `outputs/` directory:
+- `outputs/weight_int16.bin`: Quantized weights as int16_t values
+- `outputs/bias_int16.bin`: Quantized biases as int16_t values  
+- `outputs/weight_int16_Q.bin`: Q values for each layer (int32_t array)
+- `outputs/bias_int16_Q.bin`: Q values for each layer (int32_t array)
+
+### Example: YOLOv2 INT16 Quantization
+
+```bash
+cd cpp
+./weights_extractor \
+    --cfg ../cfg/yolov2.cfg \
+    --weights ../weights/yolov2.weights \
+    --int16 \
+    --verbose
+```
+
+**Output:**
+- `outputs/weights.bin` and `outputs/bias.bin` (float32, always generated)
+- `outputs/weight_int16.bin` and `outputs/bias_int16.bin` (INT16 quantized)
+- `outputs/weight_int16_Q.bin` and `outputs/bias_int16_Q.bin` (Q values per layer)
+
+### Custom Output Directory
+
+```bash
+./weights_extractor \
+    --cfg model.cfg \
+    --weights model.weights \
+    --output-dir my_outputs
+```
+
+### Custom Output Paths
+
+```bash
+./weights_extractor \
+    --cfg model.cfg \
+    --weights model.weights \
+    --int16 \
+    --output-weights-int16 custom_weights_i16.bin \
+    --output-bias-int16 custom_bias_i16.bin \
+    --output-weights-int16-q custom_weights_q.bin \
+    --output-bias-int16-q custom_bias_q.bin
+```
+
+### File Formats
+
+**INT16 weight/bias files:**
+- Binary format: `int16_t` values (2 bytes each, little-endian)
+- Sequential layer-by-layer storage
+- Padding: If a layer has odd number of elements, one zero-padded element is added
+
+**Q value files:**
+- Binary format: `int32_t` array (4 bytes per Q value, little-endian)
+- One Q value per convolutional layer (0-15)
+- Stored in layer order
+
+### Benefits
+
+- **Memory reduction**: 50% size reduction (2 bytes vs 4 bytes per value)
+- **Bandwidth savings**: Reduced memory bandwidth for hardware accelerators
+- **FPGA-friendly**: INT16 arithmetic is more efficient on FPGAs
+- **Maintains accuracy**: Per-layer Q selection preserves precision where possible
+- **Model-agnostic**: Works with any Darknet cfg file
+
+### Dequantization Example
+
+To convert INT16 values back to float32 during inference:
+
+```c
+// Read Q value for layer i
+int32_t q_value = q_values[i];
+
+// Dequantize weight
+int16_t int16_weight = weight_int16[i];
+float float_weight = (float)int16_weight * pow(2.0, -q_value);
+
+// Dequantize bias  
+int16_t int16_bias = bias_int16[i];
+float float_bias = (float)int16_bias * pow(2.0, -q_value);
+```
 
 ## Examples
 
 ### YOLOv2 Extraction
 
+**Float32 extraction:**
 ```bash
 cd cpp
 ./weights_extractor \
-    --cfg yolov2.cfg \
-    --weights yolov2.weights \
-    --output-weights yolov2_w.bin \
-    --output-bias yolov2_b.bin
+    --cfg ../cfg/yolov2.cfg \
+    --weights ../weights/yolov2.weights
+```
+
+Output files will be in `outputs/` directory: `outputs/weights.bin` and `outputs/bias.bin`
+
+**With INT16 quantization:**
+```bash
+cd cpp
+./weights_extractor \
+    --cfg ../cfg/yolov2.cfg \
+    --weights ../weights/yolov2.weights \
+    --int16 \
+    --verbose
 ```
 
 ### Custom Keras Model
