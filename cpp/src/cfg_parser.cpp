@@ -62,6 +62,8 @@ bool CfgParser::parse(const std::string& cfg_path) {
                     layers_.push_back(parse_shortcut(current_options, layer_index++));
                 } else if (current_section == "upsample") {
                     layers_.push_back(parse_upsample(current_options, layer_index++));
+                } else if (current_section == "reorg") {
+                    layers_.push_back(parse_reorg(current_options, layer_index++));
                 } else if (current_section == "yolo" || current_section == "region") {
                     layers_.push_back(parse_yolo(current_options, layer_index++));
                 }
@@ -95,6 +97,8 @@ bool CfgParser::parse(const std::string& cfg_path) {
             layers_.push_back(parse_shortcut(current_options, layer_index++));
         } else if (current_section == "upsample") {
             layers_.push_back(parse_upsample(current_options, layer_index++));
+        } else if (current_section == "reorg") {
+            layers_.push_back(parse_reorg(current_options, layer_index++));
         } else if (current_section == "yolo" || current_section == "region") {
             layers_.push_back(parse_yolo(current_options, layer_index++));
         }
@@ -183,6 +187,15 @@ LayerConfig CfgParser::parse_shortcut(const std::map<std::string, std::string>& 
 LayerConfig CfgParser::parse_upsample(const std::map<std::string, std::string>& options, int index) {
     LayerConfig layer;
     layer.type = "upsample";
+    layer.index = index;
+    layer.stride = get_int_option(options, "stride", 2);
+    
+    return layer;
+}
+
+LayerConfig CfgParser::parse_reorg(const std::map<std::string, std::string>& options, int index) {
+    LayerConfig layer;
+    layer.type = "reorg";
     layer.index = index;
     layer.stride = get_int_option(options, "stride", 2);
     
@@ -358,6 +371,11 @@ void CfgParser::compute_layer_channels() {
                           << ", from=" << from_channels << ")" << std::endl;
             }
             output_channels[i] = previous_channels;
+        } else if (layer.is_reorg()) {
+            // Reorg layer reorganizes spatial dimensions and multiplies channels by stride^2
+            // Reorg with stride=2: channels_out = channels_in * 4 (2^2)
+            int stride = layer.stride;
+            output_channels[i] = current_channels * stride * stride;
         } else {
             // Layers without weights keep channel count unchanged
             output_channels[i] = current_channels;

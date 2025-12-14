@@ -46,6 +46,7 @@ struct LayerConfig {
     bool is_route() const { return type == "route"; }
     bool is_shortcut() const { return type == "shortcut"; }
     bool is_upsample() const { return type == "upsample"; }
+    bool is_reorg() const { return type == "reorg"; }
     bool is_yolo() const { return type == "yolo"; }
 };
 
@@ -126,6 +127,7 @@ private:
     LayerConfig parse_route(const std::map<std::string, std::string>& options, int index);
     LayerConfig parse_shortcut(const std::map<std::string, std::string>& options, int index);
     LayerConfig parse_upsample(const std::map<std::string, std::string>& options, int index);
+    LayerConfig parse_reorg(const std::map<std::string, std::string>& options, int index);
     LayerConfig parse_yolo(const std::map<std::string, std::string>& options, int index);
     
     int get_int_option(const std::map<std::string, std::string>& options, 

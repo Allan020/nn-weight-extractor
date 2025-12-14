@@ -292,18 +292,23 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < conv_layers.size(); i++) {
         const LayerConfig& layer = conv_layers[i];
         
+        int n = layer.filters;
+        int c = layer.channels;
+        // Ensure groups is at least 1 to avoid division by zero
+        int groups = (layer.groups > 0) ? layer.groups : 1;
+        int num_weights = (c / groups) * n * layer.size * layer.size;
+        
         if (args.verbose) {
             std::cout << "\nLayer " << (i+1) << "/" << conv_layers.size() 
                       << ": " << layer.type << std::endl;
             std::cout << "  Filters: " << layer.filters << std::endl;
+            std::cout << "  Channels: " << layer.channels << std::endl;
             std::cout << "  Size: " << layer.size << "x" << layer.size << std::endl;
             std::cout << "  Stride: " << layer.stride << std::endl;
+            std::cout << "  Groups: " << groups << std::endl;
+            std::cout << "  Calculated num_weights: " << num_weights << std::endl;
             std::cout << "  Batch normalize: " << (layer.batch_normalize ? "yes" : "no") << std::endl;
         }
-        
-        int n = layer.filters;
-        int c = layer.channels;
-        int num_weights = (c / layer.groups) * n * layer.size * layer.size;
         
         // Read biases
         auto biases = weights_reader.read_biases(n);
