@@ -11,6 +11,7 @@
 #include <vector>
 #include <cstring>
 #include <iomanip>
+#include <sstream>
 
 #include "cfg_parser.h"
 #include "weights_reader.h"
@@ -88,6 +89,22 @@ bool validate_arguments(const Arguments& args) {
     }
     
     return true;
+}
+
+std::string format_bytes(size_t bytes) {
+    const char* units[] = {"B", "KB", "MB", "GB"};
+    double value = static_cast<double>(bytes);
+    int unit_index = 0;
+    
+    while (value >= 1024.0 && unit_index < 3) {
+        value /= 1024.0;
+        unit_index++;
+    }
+    
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(value >= 10.0 ? 1 : 2)
+        << value << " " << units[unit_index];
+    return oss.str();
 }
 
 int main(int argc, char** argv) {
@@ -217,13 +234,34 @@ int main(int argc, char** argv) {
         
         total_weights += folded.weights.size();
         total_biases += folded.biases.size();
-        
-        if (!args.verbose) {
-            // Print progress
+
+        if (args.verbose) {
+            // Detailed per-layer summary
+            size_t weights_bytes = folded.weights.size() * sizeof(float);
+            size_t bias_bytes = folded.biases.size() * sizeof(float);
+            int in_channels = layer.channels;
+            int out_channels = layer.filters;
+            int kernel = layer.size;
+            int groups = layer.groups;
+            int in_per_group = (groups > 0) ? (in_channels / groups) : in_channels;
+
+            std::cout << "Layer " << (i+1) << "/" << conv_layers.size()
+                      << " [conv]"
+                      << " out_ch=" << out_channels
+                      << " in_ch=" << in_channels
+                      << " groups=" << groups
+                      << " kernel=" << kernel << "x" << kernel
+                      << " (per-group in=" << in_per_group << ")"
+                      << " weights=" << folded.weights.size() << " (" << format_bytes(weights_bytes) << ")"
+                      << " bias=" << folded.biases.size() << " (" << format_bytes(bias_bytes) << ")"
+                      << (layer.batch_normalize ? " BN-folded" : "")
+                      << std::endl;
+        } else {
+            // Compact progress for non-verbose runs
             std::cout << "\rProcessed layer " << (i+1) << "/" << conv_layers.size() << std::flush;
         }
     }
-    
+
     if (!args.verbose) {
         std::cout << std::endl;
     }
@@ -248,4 +286,3 @@ int main(int argc, char** argv) {
     
     return 0;
 }
-

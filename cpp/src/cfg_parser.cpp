@@ -102,6 +102,9 @@ bool CfgParser::parse(const std::string& cfg_path) {
     
     file.close();
     
+    // Infer input/output channel counts for each layer so weight sizes match the model graph
+    compute_layer_channels();
+    
     if (verbose_) {
         std::cout << "Parsed " << layers_.size() << " layers from config file" << std::endl;
     }
@@ -312,5 +315,61 @@ std::vector<int> CfgParser::parse_int_list(const std::string& str) const {
     return result;
 }
 
-} // namespace darknet
+void CfgParser::compute_layer_channels() {
+    if (layers_.empty()) {
+        return;
+    }
+    
+    std::vector<int> output_channels(layers_.size(), 0);
+    int current_channels = net_config_.channels;
+    
+    for (size_t i = 0; i < layers_.size(); ++i) {
+        LayerConfig& layer = layers_[i];
+        
+        if (layer.is_convolutional()) {
+            // Convolutional layers consume the current channel count
+            layer.channels = current_channels;
+            output_channels[i] = layer.filters;
+        } else if (layer.is_route()) {
+            // Route concatenates the referenced layers
+            int channels_sum = 0;
+            for (int layer_ref : layer.layers) {
+                int idx = resolve_layer_index(static_cast<int>(i), layer_ref);
+                if (idx >= 0 && idx < static_cast<int>(output_channels.size())) {
+                    channels_sum += output_channels[idx];
+                } else if (verbose_) {
+                    std::cerr << "Warning: route layer " << i 
+                              << " references invalid layer index " << layer_ref << std::endl;
+                }
+            }
+            output_channels[i] = channels_sum;
+        } else if (layer.is_shortcut()) {
+            // Shortcut adds the previous output with a referenced layer
+            int previous_channels = current_channels;
+            int from_idx = layer.layers.empty() ? static_cast<int>(i) - 1
+                                               : resolve_layer_index(static_cast<int>(i), layer.layers[0]);
+            int from_channels = (from_idx >= 0 && from_idx < static_cast<int>(output_channels.size()))
+                ? output_channels[from_idx]
+                : previous_channels;
+            
+            if (previous_channels != from_channels && verbose_) {
+                std::cerr << "Warning: shortcut layer " << i 
+                          << " channel mismatch (prev=" << previous_channels 
+                          << ", from=" << from_channels << ")" << std::endl;
+            }
+            output_channels[i] = previous_channels;
+        } else {
+            // Layers without weights keep channel count unchanged
+            output_channels[i] = current_channels;
+        }
+        
+        current_channels = output_channels[i];
+    }
+}
 
+int CfgParser::resolve_layer_index(int current_index, int reference) const {
+    // Darknet uses negative values to reference layers relative to the current index
+    return (reference >= 0) ? reference : current_index + reference;
+}
+
+} // namespace darknet

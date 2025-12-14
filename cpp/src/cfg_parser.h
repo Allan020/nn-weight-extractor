@@ -116,6 +116,9 @@ private:
     NetworkConfig net_config_;
     std::vector<LayerConfig> layers_;
     
+    void compute_layer_channels();
+    int resolve_layer_index(int current_index, int reference) const;
+    
     // Helper methods
     void parse_net_section(const std::map<std::string, std::string>& options);
     LayerConfig parse_convolutional(const std::map<std::string, std::string>& options, int index);
@@ -141,4 +144,3 @@ private:
 } // namespace darknet
 
 #endif // CFG_PARSER_H
-
